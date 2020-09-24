@@ -12,7 +12,7 @@ const int xInput = A1; // x 좌표
 const int yInput = A2; // y 좌표
 const int zInput = A3; // z 좌표 
 
-// 가속도 센터 변수값 세팅
+/// 가속도 센터 변수값 세팅
 int RawMin = 0;
 int RawMax = 1023;
 const int sampleSize = 10;
