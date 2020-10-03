@@ -8,13 +8,18 @@
 #include <avr/io.h>
 #include <math.h>
 #include <Wire.h>
-//JSON LIB
-
 #define I2C_ID  0x53
+//SD카드
+#include <SPI.h>
+#include <SD.h>
+ 
+File myFile;
+ 
+
 
 
 //체온 관련
-int temperature;  
+float temperature;  
 int reading;  
 int lm35Pin = A2;
 
@@ -22,9 +27,10 @@ int lm35Pin = A2;
 const int PulseWire = 0;      
 int Threshold = 550;                                                   
 PulseSensorPlayground pulseSensor; 
- 
+
 SoftwareSerial BTSerial(2, 3);
- 
+
+
 void setup()  
 {
 
@@ -54,11 +60,25 @@ void setup()
    if (pulseSensor.begin()) {
     Serial.println("Sensor OK");  //This prints one time at Arduino power-up,  or on Arduino reset.  
   }
-}
+
+  //sd카드
+  Serial.print("Initializing SD card...");
  
+  //SD카드 초기화 SD.begin(4) 는  CS핀번호
+  if (!SD.begin(4)) {
+    Serial.println("initialization failed!");
+    return;
+  }
+  Serial.println("initialization done.");
+   
+}
+
+
 void loop()
 {
-  DynamicJsonDocument doc(1024);
+  const size_t capacity = JSON_OBJECT_SIZE(5);
+  DynamicJsonDocument doc(capacity);
+  
   //가속도 센서 세팅 
   char str[30];
   char data[6];
@@ -103,7 +123,17 @@ if (pulseSensor.sawStartOfBeat()) {
 
   serializeJson(doc, Serial);
   Serial.println();
-  
+  myFile = SD.open("sleep.txt", FILE_WRITE);
+  if (!myFile) {
+    Serial.println("error opening sleep.txt");
+    while (1) ;
+  }
+  if (myFile) {
+  serializeJson(doc, myFile);
+  myFile.println();
+  myFile.close();
+  }
+ 
 
 
  delay(1000);
