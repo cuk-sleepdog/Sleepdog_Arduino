@@ -5,28 +5,37 @@
 #define USE_ARDUINO_INTERRUPTS true    
 #include <PulseSensorPlayground.h> 
 //G센서
+
 #include <avr/io.h>
 #include <math.h>
 #include <Wire.h>
 #define I2C_ID  0x53
+
 //SD카드
 #include <SPI.h>
 #include <SD.h>
- 
+//RTC 센서
+#include <ThreeWire.h>  
+#include <RtcDS1302.h>
+//SD카드 
 File myFile;
- 
 
-
-
-//체온 관련
-float temperature;  
-int reading;  
-int lm35Pin = A2;
+//온도센서
+#include <Adafruit_MLX90614.h> // 비접촉식 온도측정센서 라이브러리 불러오기 
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
 //심박수 변수
 const int PulseWire = 0;      
 int Threshold = 550;                                                   
 PulseSensorPlayground pulseSensor; 
+
+//수면 변수
+int sleep = 0;
+
+//RTC 변수
+ThreeWire myWire(6,5,7); // IO, SCLK, CE
+RtcDS1302<ThreeWire> Rtc(myWire);
+
 
 SoftwareSerial BTSerial(2, 3);
 
@@ -37,8 +46,11 @@ void setup()
   analogReference(INTERNAL);
   Serial.begin(9600);
   BTSerial.begin(9600);  
+  
 
   Wire.begin();
+
+  
 
   // adxl345 initialize
   // power setting
@@ -52,6 +64,7 @@ void setup()
   Wire.write(byte(0x31));
   Wire.write(byte(0x02));  //0x03
   Wire.endTransmission();
+  
 
   //심박수 
    pulseSensor.analogInput(PulseWire);   
@@ -69,16 +82,39 @@ void setup()
     Serial.println("initialization failed!");
     return;
   }
+
+  Rtc.Begin();
+  RtcDateTime now = Rtc.GetDateTime();
+  mlx.begin();
+
   Serial.println("initialization done.");
    
 }
 
-
+#define countof(a) (sizeof(a) / sizeof(a[0]))
 void loop()
 {
-  const size_t capacity = JSON_OBJECT_SIZE(5);
+  const size_t capacity = JSON_OBJECT_SIZE(8);
   DynamicJsonDocument doc(capacity);
-  
+
+  //RTC
+  RtcDateTime now = Rtc.GetDateTime();
+  char datestring[20];
+
+    snprintf_P(datestring, 
+            countof(datestring),
+            PSTR("%04u/%02u/%02u %02u:%02u"),
+            now.Year(),
+            now.Month(),
+            now.Day(),
+            now.Hour(),
+            now.Minute());
+
+            String dt = datestring;
+
+   doc["DATE"] = dt;
+
+
   //가속도 센서 세팅 
   char str[30];
   char data[6];
@@ -88,9 +124,6 @@ void loop()
   short acc_z;
 
 
-
-   reading = analogRead(lm35Pin);
-   temperature = reading / 9.31;
    
     // data request
   Wire.beginTransmission(I2C_ID);
@@ -105,22 +138,47 @@ void loop()
   acc_x = (data[1] << 8) | data[0];
   acc_y = (data[3] << 8) | data[2];
   acc_z = (data[5] << 8) | data[4];
+  
 
  
   int myBPM = pulseSensor.getBeatsPerMinute();
-  doc["TEMP"] = temperature;
+  
   doc["BPM"]   = 0;
-  doc["X"]   = acc_x;
-  doc["Y"]   = acc_y;
-  doc["Z"]   = acc_z;
 if (pulseSensor.sawStartOfBeat()) {                   
   doc["BPM"]   = myBPM;
 }
 
+  String strTemp = String("");
+  strTemp += (double)(mlx.readObjectTempC()); // 주변 온도를 읽습니다.
+  strTemp+="'C";
+  doc["TEMP"] =strTemp;
+
+   int nsleep = abs(acc_x)+abs(acc_y)+abs(acc_z);
+
+  // doc["SLEEP"]   = nsleep;
+
+
+  if ( (sleep - 7) <= nsleep && nsleep <= (sleep + 7))
+  {
+    doc["SLEEP"]   = "Sleep";
+    sleep = nsleep;
+
+  }
+
+  else
+  {
+    doc["SLEEP"]   = "Wake";
+    sleep = nsleep;
+  }
+  
  
+
+
+        
+ /*
   serializeJson(doc, BTSerial);
   BTSerial.println();
-
+*/
   serializeJson(doc, Serial);
   Serial.println();
   myFile = SD.open("sleep.txt", FILE_WRITE);
@@ -136,8 +194,6 @@ if (pulseSensor.sawStartOfBeat()) {
  
 
 
- delay(1000);
-  
-
+ delay(60000);
    
 }
