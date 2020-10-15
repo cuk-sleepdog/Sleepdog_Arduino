@@ -2,9 +2,26 @@
 
 Sleepdog Project의 Aruduino Code
 
-현재 완성 된 것 : 모든 센서 연결 및 JSON 객체화 완료, SD 카드에 데이터 저장
+Server로 보내는 JSON DATA 값 
 
-추후 작업 해야되는 것 : WIFI 모듈을 통한 서버와의 통신 작업만 하면 FINISH
+{
+    
+    "DATE":"Value", // 측정 날짜 
 
+    "TIME":"Value", // 측정 시간
 
-<img src="https://user-images.githubusercontent.com/4760897/95462929-220ceb00-09b3-11eb-9e91-853d9a96f2cd.png" width="90%"></img>
+    "BPM":Value, // 심박수 
+
+    "TEMP":"Value", // 체온
+
+    "CHK":"Value" // 움직임 감지
+
+} 
+
+현재까지 나타난 문제점
+
+1. wifi 모듈 불량으로 인한 서버 연결 불가능
+
+-> 추후 센서 교체 및 테스트 시도
+
+<img src="https://github.com/cuk-sleepdog/Sleepdog_Arduino/blob/master/test.png?raw=true" width="90%"></img>

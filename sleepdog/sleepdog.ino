@@ -94,25 +94,31 @@ void setup()
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 void loop()
 {
-  const size_t capacity = JSON_OBJECT_SIZE(8);
+  const size_t capacity = JSON_OBJECT_SIZE(12);
   DynamicJsonDocument doc(capacity);
 
   //RTC
   RtcDateTime now = Rtc.GetDateTime();
-  char datestring[20];
+  char datestring[11];
+  char ts[6];
+
 
     snprintf_P(datestring, 
             countof(datestring),
-            PSTR("%04u/%02u/%02u %02u:%02u"),
+            PSTR("%04u/%02u/%02u"),
             now.Year(),
             now.Month(),
-            now.Day(),
+            now.Day());
+
+            snprintf_P(ts, 
+            countof(ts),
+            PSTR("%02u:%02u"),
             now.Hour(),
             now.Minute());
 
-            String dt = datestring;
 
-   doc["DATE"] = dt;
+    doc["DATE"]   = datestring;
+    doc["TIME"]   = ts;
 
 
   //가속도 센서 세팅 
@@ -150,7 +156,6 @@ if (pulseSensor.sawStartOfBeat()) {
 
   String strTemp = String("");
   strTemp += (double)(mlx.readObjectTempC()); // 주변 온도를 읽습니다.
-  strTemp+="'C";
   doc["TEMP"] =strTemp;
 
    int nsleep = abs(acc_x)+abs(acc_y)+abs(acc_z);
@@ -160,14 +165,14 @@ if (pulseSensor.sawStartOfBeat()) {
 
   if ( (sleep - 7) <= nsleep && nsleep <= (sleep + 7))
   {
-    doc["SLEEP"]   = "Sleep";
+    doc["CHK"]   = "Sleep";
     sleep = nsleep;
 
   }
 
   else
   {
-    doc["SLEEP"]   = "Wake";
+    doc["CHK"]   = "Wake";
     sleep = nsleep;
   }
   
@@ -181,6 +186,10 @@ if (pulseSensor.sawStartOfBeat()) {
 */
   serializeJson(doc, Serial);
   Serial.println();
+
+  delay(100);
+
+
   myFile = SD.open("sleep.txt", FILE_WRITE);
   if (!myFile) {
     Serial.println("error opening sleep.txt");
@@ -194,6 +203,6 @@ if (pulseSensor.sawStartOfBeat()) {
  
 
 
- delay(60000);
+ delay(1000);
    
 }
