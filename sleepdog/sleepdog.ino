@@ -24,6 +24,15 @@ File myFile;
 #include <Adafruit_MLX90614.h> // 비접촉식 온도측정센서 라이브러리 불러오기 
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 
+//와이파이 모듈
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+const char* ssid = "SSID"; 
+const char* password = "PASSWORD"; 
+const char* host = "sleepdog.mintpass.kr:3000";
+String url = "/Health/"; 
+
+
 //심박수 변수
 const int PulseWire = 0;      
 int Threshold = 550;                                                   
@@ -86,6 +95,11 @@ void setup()
   Rtc.Begin();
   RtcDateTime now = Rtc.GetDateTime();
   mlx.begin();
+
+
+  //와이파이 모듈 셋업
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password); 
 
   Serial.println("initialization done.");
    
@@ -187,7 +201,10 @@ if (pulseSensor.sawStartOfBeat()) {
   serializeJson(doc, Serial);
   Serial.println();
 
-  delay(100);
+
+
+  String json;
+  serializeJson(doc, json);
 
 
   myFile = SD.open("sleep.txt", FILE_WRITE);
@@ -198,8 +215,18 @@ if (pulseSensor.sawStartOfBeat()) {
   if (myFile) {
   serializeJson(doc, myFile);
   myFile.println();
+
+  //서버 연결 작업
+  WiFiClient client;
+  String address = host + url;  
+  HTTPClient http;
+  http.begin(address); 
+  http.POST(json);
+  http.end();
   myFile.close();
   }
+
+
  
 
 
