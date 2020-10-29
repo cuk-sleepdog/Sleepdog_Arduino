@@ -1,37 +1,23 @@
 #include <ArduinoJson.h>
-
 #include <SoftwareSerial.h>
 //심박수
 #define USE_ARDUINO_INTERRUPTS true    
 #include <PulseSensorPlayground.h> 
 //G센서
-
 #include <avr/io.h>
 #include <math.h>
 #include <Wire.h>
 #define I2C_ID  0x53
 
-//SD카드
-#include <SPI.h>
-#include <SD.h>
+
 //RTC 센서
 #include <ThreeWire.h>  
 #include <RtcDS1302.h>
-//SD카드 
-File myFile;
+
 
 //온도센서
 #include <Adafruit_MLX90614.h> // 비접촉식 온도측정센서 라이브러리 불러오기 
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
-
-//와이파이 모듈
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-const char* ssid = "SSID"; 
-const char* password = "PASSWORD"; 
-const char* host = "sleepdog.mintpass.kr:3000";
-String url = "/Health/"; 
-
 
 //심박수 변수
 const int PulseWire = 0;      
@@ -46,7 +32,7 @@ ThreeWire myWire(6,5,7); // IO, SCLK, CE
 RtcDS1302<ThreeWire> Rtc(myWire);
 
 
-SoftwareSerial BTSerial(2, 3);
+SoftwareSerial ser(2, 3); // RX/TX 설정, serial 객체생성
 
 
 void setup()  
@@ -54,7 +40,7 @@ void setup()
 
   analogReference(INTERNAL);
   Serial.begin(9600);
-  BTSerial.begin(9600);  
+  ser.begin(9600);  
   
 
   Wire.begin();
@@ -83,23 +69,12 @@ void setup()
     Serial.println("Sensor OK");  //This prints one time at Arduino power-up,  or on Arduino reset.  
   }
 
-  //sd카드
-  Serial.print("Initializing SD card...");
- 
-  //SD카드 초기화 SD.begin(4) 는  CS핀번호
-  if (!SD.begin(4)) {
-    Serial.println("initialization failed!");
-    return;
-  }
+
+
 
   Rtc.Begin();
   RtcDateTime now = Rtc.GetDateTime();
   mlx.begin();
-
-
-  //와이파이 모듈 셋업
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password); 
 
   Serial.println("initialization done.");
    
@@ -108,12 +83,14 @@ void setup()
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 void loop()
 {
-  const size_t capacity = JSON_OBJECT_SIZE(12);
+  const size_t capacity = JSON_OBJECT_SIZE(9);
   DynamicJsonDocument doc(capacity);
 
+
+ doc["PRODUCT"]   = 1;
   //RTC
   RtcDateTime now = Rtc.GetDateTime();
-  char datestring[11];
+  char datestring[12];
   char ts[6];
 
 
@@ -129,8 +106,6 @@ void loop()
             PSTR("%02u:%02u"),
             now.Hour(),
             now.Minute());
-
-
     doc["DATE"]   = datestring;
     doc["TIME"]   = ts;
 
@@ -174,7 +149,6 @@ if (pulseSensor.sawStartOfBeat()) {
 
    int nsleep = abs(acc_x)+abs(acc_y)+abs(acc_z);
 
-  // doc["SLEEP"]   = nsleep;
 
 
   if ( (sleep - 7) <= nsleep && nsleep <= (sleep + 7))
@@ -192,44 +166,55 @@ if (pulseSensor.sawStartOfBeat()) {
   
  
 
-
+// TCP 연결
+  String cmd = "AT+CIPSTART=\"TCP\",\"";
+  cmd += "sleepdog.mintpass.kr"; // api.thingspeak.com 접속 IP
+  cmd += "\",3000";           // api.thingspeak.com 접속 포트, 80
+  ser.println(cmd);
+   
+  if(ser.find("Error")){
+    Serial.println("AT+CIPSTART error");
+    return;
+  }
         
- /*
-  serializeJson(doc, BTSerial);
-  BTSerial.println();
-*/
-  serializeJson(doc, Serial);
-  Serial.println();
+
+String output;
+  serializeJson(doc, output);
+  
+ 
+  int len=output.length();
+  
+
+  
+  String post = "POST /HealthAPI HTTP/1.1\r\n";
+post+= "Host: sleepdog.mintpass.kr\r\nContent-Type: application/json\r\nContent-Length: ";
+delay(1000);
+post+= String(len)+"\r\n\r\n";
+post+=output;
 
 
-
-  String json;
-  serializeJson(doc, json);
-
-
-  myFile = SD.open("sleep.txt", FILE_WRITE);
-  if (!myFile) {
-    Serial.println("error opening sleep.txt");
-    while (1) ;
-  }
-  if (myFile) {
-  serializeJson(doc, myFile);
-  myFile.println();
-
-  //서버 연결 작업
-  WiFiClient client;
-  String address = host + url;  
-  HTTPClient http;
-  http.begin(address); 
-  http.POST(json);
-  http.end();
-  myFile.close();
-  }
 
 
  
+  // Send Data
+  cmd = "AT+CIPSEND=";
+  cmd += String(post.length());
+  ser.println(cmd);
+ 
+  if(ser.find(">")){
+    ser.print(post);
+  }
+  else{
+    ser.println("AT+CIPCLOSE");
+    // alert user
+    Serial.println("OK");
+    Serial.println(post);
+  }
 
 
- delay(1000);
+
+
+
+ delay(60000);
    
 }

@@ -5,6 +5,7 @@ Sleepdog Project의 Aruduino Code
 Server로 보내는 JSON DATA 값 
 
 {
+    "Product": Value, // 측정 날짜 
     
     "DATE":"Value", // 측정 날짜 
 
@@ -18,10 +19,17 @@ Server로 보내는 JSON DATA 값
 
 } 
 
-현재까지 나타난 문제점
 
-1. wifi 모듈 불량으로 인한 서버 연결 불가능
-
--> 추후 센서 교체 및 테스트 시도
 
 <img src="https://github.com/cuk-sleepdog/Sleepdog_Arduino/blob/master/test.png?raw=true" width="90%"></img>
+
+
+변경 사항
+
+1. 방향성 변경으로 인한 SD카드 기능 삭제 
+
+2. 데이터 전송 간격 최소화
+
+3. 제품별 고유 아이디 지정화 
+
+모든 기능 구현 완료
