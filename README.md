@@ -5,6 +5,7 @@ Sleepdog Project의 Aruduino Code
 Server로 보내는 JSON DATA 값 
 
 {
+
     "Product": Value, // 측정 날짜 
     
     "DATE":"Value", // 측정 날짜 
