@@ -6,7 +6,7 @@ Server로 보내는 JSON DATA 값
 
 {
     
-    "Product": Value, // 측정 날짜 
+    "Product": Value, // 제품 넘버 
 
     "BPM":Value, // 심박수 
 
